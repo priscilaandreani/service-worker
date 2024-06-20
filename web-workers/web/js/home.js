@@ -40,6 +40,7 @@
 
   function onMessage(e) {
     console.log(e.data);
+    worker.postMessage("Started from Client!");
   }
 
   function stopFibs() {
