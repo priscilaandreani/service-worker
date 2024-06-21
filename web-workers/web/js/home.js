@@ -36,11 +36,13 @@
     worker = new Worker("/js/worker.js");
 
     worker.addEventListener("message", onMessage);
+    worker.postMessage({ start: true });
   }
 
   function onMessage(e) {
-    console.log(e.data);
-    worker.postMessage("Started from Client!");
+    console.log("evento", e.data);
+
+    renderFib(e.data.idx, e.data.fib);
   }
 
   function stopFibs() {
@@ -48,5 +50,7 @@
     startStopBtn.addEventListener("click", startFibs, false);
 
     startStopBtn.innerText = "Start";
+
+    worker.terminate();
   }
 })();
