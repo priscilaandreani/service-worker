@@ -25,8 +25,8 @@ self.importScripts("shared-worker.js");
 ### Envio de Dados entre Web Workers e Web Pages
 
 Os dados enviados entre Web Workers e a página da web **são copiados em vez de serem passados por referência** devido à natureza assíncrona dos Web Workers. Isso ocorre para garantir que cada thread (o principal e os Web Workers) tenha sua própria cópia dos dados manipulados, evitando conflitos de acesso simultâneo aos mesmos dados. Além disso, essa abordagem permite que os Web Workers operem independentemente do estado da página principal, facilitando a programação paralela e melhorando o desempenho geral da aplicação.
+<br/>
 
 <aside>
 📌 Web Workers não permitem o envio direto de funções JavaScript para serem executadas em um thread separado por motivos de segurança e isolamento. No entanto, você pode contornar essa limitação enviando uma string que representa a função desejada para o Web Worker. Essa string deve ser compilada de volta para uma função dentro do contexto do Web Worker. Bibliotecas como `worker-loader` ou `workerize` podem ajudar nesse processo, permitindo que você compile e execute código assíncrono de forma mais fácil e segura
-
 </aside>
