@@ -65,10 +65,10 @@
   }
 
   function sendStatusUpdate(target) {
-    sendSWMessage({ statusUpdate: { isOnline, isLoggedIn }, target });
+    sendSWMessage({ statusUpdate: { isOnline, isLoggedIn } }, target);
   }
 
-  async function sendSWMessage(target) {
+  async function sendSWMessage(msg, target) {
     if (target) {
       target.postMessage(msg);
     } else if (svcworker) {
