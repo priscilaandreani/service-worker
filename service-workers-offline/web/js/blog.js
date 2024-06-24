@@ -25,11 +25,13 @@
     window.addEventListener("online", () => {
       offlineIcon.classList.add("hidden");
       isOnline = true;
+      sendStatusUpdate();
     });
 
     window.addEventListener("offline", () => {
       offlineIcon.classList.remove("hidden");
       isOnline = false;
+      sendStatusUpdate();
     });
   }
 
@@ -47,7 +49,33 @@
       "controllerchange",
       function onControllerChange() {
         svcworker = navigator.serviceWorker.controller;
+        sendStatusUpdate(svcworker);
       }
     );
+
+    navigator.serviceWorker.addEventListener("message", onSWMessage);
+  }
+
+  function onSWMessage(e) {
+    var { data } = e;
+    if (data.requestStatusUpdate) {
+      console.log("Received status update request from service worker.");
+      sendStatusUpdate(e.ports && e.ports[0]);
+    }
+  }
+
+  function sendStatusUpdate(target) {
+    sendSWMessage({ statusUpdate: { isOnline, isLoggedIn }, target });
+  }
+
+  async function sendSWMessage(target) {
+    if (target) {
+      target.postMessage(msg);
+    } else if (svcworker) {
+      svcworker.postMessage(msg);
+    } else {
+      //fallback
+      navigator.serviceWorker.controller.postMessage(msg);
+    }
   }
 })();
