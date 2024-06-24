@@ -31,23 +31,23 @@
       offlineIcon.classList.remove("hidden");
       isOnline = false;
     });
+  }
 
-    async function initServiceWorker() {
-      swRegistration = await navigator.serviceWorker.register("/sw.js", {
-        updateViaCache: "none",
-      });
+  async function initServiceWorker() {
+    swRegistration = await navigator.serviceWorker.register("/sw.js", {
+      updateViaCache: "none",
+    });
 
-      svcworker =
-        swRegistration.installing ||
-        swRegistration.waiting ||
-        swRegistration.active;
+    svcworker =
+      swRegistration.installing ||
+      swRegistration.waiting ||
+      swRegistration.active;
 
-      navigator.serviceWorker.addEventListener(
-        "controllerchange",
-        function onControllerChange() {
-          svcworker = navigator.serviceWorker.controller;
-        }
-      );
-    }
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      function onControllerChange() {
+        svcworker = navigator.serviceWorker.controller;
+      }
+    );
   }
 })();
