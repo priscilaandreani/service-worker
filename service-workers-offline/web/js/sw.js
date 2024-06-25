@@ -162,7 +162,6 @@ async function router(req) {
       // login-aware requests?
       if (/ˆ\/(?:login|logout|add-post)$/.test(reqURL)) {
         let res;
-
         if (reqURL == "/login") {
           if (isOnline) {
             let fetchOptions = {
@@ -189,6 +188,71 @@ async function router(req) {
             return Response.redirect("/", 307);
           } else if (isLoggedIn) {
             return Response.redirect("/add-post", 307);
+          } else {
+            res = await cache.match("/login");
+            if (res) {
+              return res;
+            }
+            return cache.match("/offline");
+          }
+        } else if (reqURL == "/logout") {
+          if (isOnline) {
+            let fetchOptions = {
+              method: req.method,
+              headers: req.headers,
+              credentials: "same-origin",
+              cache: "no-store",
+              redirect: "manual",
+            };
+            res = await safeRequest(reqURL, req, fetchOptions);
+            if (res) {
+              if (res.type == "opaqueredirect") {
+                return Response.redirect("/", 307);
+              }
+              return res;
+            }
+            if (isLoggedIn) {
+              isLoggedIn = false;
+              await sendMessage("force-logout");
+              await delay(100);
+            }
+            return Response.redirect("/", 307);
+          } else if (isLoggedIn) {
+            isLoggedIn = false;
+            await sendMessage("force-logout");
+            await delay(100);
+            return Response.redirect("/", 307);
+          } else {
+            return Response.redirect("/", 307);
+          }
+        } else if (reqURL == "/add-post") {
+          if (isOnline) {
+            let fetchOptions = {
+              method: req.method,
+              headers: req.headers,
+              credentials: "same-origin",
+              cache: "no-store",
+            };
+            res = await safeRequest(
+              reqURL,
+              req,
+              fetchOptions,
+              /*cacheResponse=*/ true
+            );
+            if (res) {
+              return res;
+            }
+            res = await cache.match(isLoggedIn ? "/add-post" : "/login");
+            if (res) {
+              return res;
+            }
+            return Response.redirect("/", 307);
+          } else if (isLoggedIn) {
+            res = await cache.match("/add-post");
+            if (res) {
+              return res;
+            }
+            return cache.match("/offline");
           } else {
             res = await cache.match("/login");
             if (res) {
