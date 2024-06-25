@@ -1,6 +1,6 @@
 "use strict";
 
-const version = 5;
+const version = 6;
 var isOnline = true;
 var isLoggedIn = false;
 var cacheName = `ramblings-${version}`;
@@ -27,6 +27,7 @@ var urlsToCache = {
 self.addEventListener("install", onInstall);
 self.addEventListener("activate", onActivate);
 self.addEventListener("message", onMessage);
+self.addEventListener("fetch", onFetch);
 
 main().catch(console.error);
 
@@ -117,4 +118,40 @@ async function clearCaches() {
       return caches.delete(cacheName);
     })
   );
+}
+
+function onFetch(e) {
+  e.respondWith(router(e.request));
+}
+
+async function router(req) {
+  var url = new URL(req.url);
+  var reqURL = url.pathname;
+  var cache = await caches.open(cacheName);
+
+  if (url.origin == location.origin) {
+    let res;
+    //same server
+    try {
+      let fetchOptions = {
+        method: req.method,
+        headers: req.headers,
+        credentials: "omit",
+        cache: "no-store",
+      };
+
+      let res = await fetch(req.url, fetchOptions);
+
+      if (res && res.ok) {
+        await cache.put(reqURL, res.clone());
+        return res;
+      }
+    } catch (err) {}
+
+    res = await cache.match(reqURL);
+    if (res) {
+      return res.clone();
+    }
+  }
+  // TODO: figuere out CORS requests
 }
