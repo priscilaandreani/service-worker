@@ -1,12 +1,12 @@
 "use strict";
 
-const version = 6;
+var version = 7;
 var isOnline = true;
 var isLoggedIn = false;
 var cacheName = `ramblings-${version}`;
+var allPostsCaching = false;
 
 var urlsToCache = {
-  // urls as clients will request them
   loggedOut: [
     "/",
     "/about",
@@ -14,11 +14,11 @@ var urlsToCache = {
     "/404",
     "/login",
     "/offline",
+    "/css/style.css",
     "/js/blog.js",
     "/js/home.js",
     "/js/login.js",
     "/js/add-post.js",
-    "/css/style.css",
     "/images/logo.gif",
     "/images/offline.png",
   ],
@@ -37,12 +37,10 @@ async function main() {
   await cacheLoggedOutFiles();
   await sendMessage({ requestStatusUpdate: true });
 }
-
 async function onInstall(e) {
   console.log(`Service Worker (${version}) installed.`);
   self.skipWaiting();
 }
-
 async function sendMessage(msg) {
   var allClients = await clients.matchAll({ includeUncontrolled: true });
   return Promise.all(
@@ -81,24 +79,24 @@ async function cacheLoggedOutFiles(forceReload = false) {
     urlsToCache.loggedOut.map(async function requestFile(url) {
       try {
         let res;
+
         if (!forceReload) {
           res = await cache.match(url);
           if (res) {
-            return res;
+            return;
           }
         }
 
         let fetchOptions = {
           method: "GET",
-          cache: "no-cache", // dont use the browser cache
+          cache: "no-store",
           credentials: "omit",
         };
-
         res = await fetch(url, fetchOptions);
         if (res.ok) {
-          await cache.put(url, res); // you almost always wanna do a clone on that response
+          return cache.put(url, res);
         }
-      } catch {}
+      } catch (err) {}
     })
   );
 }
@@ -124,20 +122,39 @@ function onFetch(e) {
   e.respondWith(router(e.request));
 }
 
+async function sendMessage(msg) {
+  var allClients = await clients.matchAll({ includeUncontrolled: true });
+  return Promise.all(
+    allClients.map(function sendTo(client) {
+      var chan = new MessageChannel();
+      chan.port1.onmessage = onMessage;
+      return client.postMessage(msg, [chan.port2]);
+    })
+  );
+}
+
+function onMessage({ data }) {
+  if ("statusUpdate" in data) {
+    ({ isOnline, isLoggedIn } = data.statusUpdate);
+    console.log(
+      `Service Worker (v${version}) status update... isOnline:${isOnline}, isLoggedIn:${isLoggedIn}`
+    );
+  }
+}
+
 async function router(req) {
   var url = new URL(req.url);
   var reqURL = url.pathname;
   var cache = await caches.open(cacheName);
 
-  //same site URL
+  // request for site's own URL?
   if (url.origin == location.origin) {
     // are we making an API request?
     if (/^\/api\/.+$/.test(reqURL)) {
       let fetchOptions = {
         credentials: "same-origin",
-        cache: "no-cache",
+        cache: "no-store",
       };
-
       let res = await safeRequest(
         reqURL,
         req,
@@ -147,21 +164,25 @@ async function router(req) {
         /*checkCacheLast=*/ true,
         /*useRequestDirectly=*/ true
       );
-
       if (res) {
         if (req.method == "GET") {
           await cache.put(reqURL, res.clone());
         }
+        // clear offline-backup of successful post?
+        else if (reqURL == "/api/add-post") {
+          await idbKeyval.del("add-post-backup");
+        }
         return res;
       }
+
       return notFoundResponse();
     }
-
     // are we requesting a page?
     else if (req.headers.get("Accept").includes("text/html")) {
       // login-aware requests?
-      if (/ˆ\/(?:login|logout|add-post)$/.test(reqURL)) {
+      if (/^\/(?:login|logout|add-post)$/.test(reqURL)) {
         let res;
+
         if (reqURL == "/login") {
           if (isOnline) {
             let fetchOptions = {
@@ -292,7 +313,7 @@ async function router(req) {
         return cache.match("/offline");
       }
     }
-    // all others files use "cache-first"
+    // all other files use "cache-first"
     else {
       let fetchOptions = {
         method: req.method,
